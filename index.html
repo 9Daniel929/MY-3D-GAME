@@ -1,100 +1,178 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>3D Game</title>
+<title>Shooter Keyboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body {
-  margin: 0;
-  overflow: hidden;
-  background: black;
-  font-family: Arial;
+body { margin:0; overflow:hidden; background:black; font-family:Arial; }
+canvas { display:block; }
+#menu, #gameover {
+  position:absolute; inset:0;
+  background:rgba(0,0,0,.9);
+  color:white;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
 }
-#play {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: black;
-}
-button {
-  padding: 18px 36px;
-  font-size: 22px;
+#gameover { display:none; }
+button { padding:14px 28px; font-size:20px; margin:8px; }
+#ui {
+  position:absolute; top:10px; left:10px;
+  color:white; font-size:18px;
 }
 </style>
 </head>
 <body>
 
-<div id="play">
-  <button onclick="startGame()">PLAY</button>
+<div id="menu">
+  <h1>SHOOTER</h1>
+  <p>Choose Skin</p>
+  <button onclick="setSkin('cyan')">CYAN</button>
+  <button onclick="setSkin('lime')">LIME</button>
+  <button onclick="setSkin('orange')">ORANGE</button>
+  <button onclick="start()">PLAY</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<div id="ui">
+  ❤️ <span id="hp">100</span> |
+  Level <span id="lvl">1</span>
+</div>
+
+<div id="gameover">
+  <h1>GAME OVER</h1>
+  <button onclick="location.reload()">RESTART</button>
+</div>
+
+<canvas id="game"></canvas>
 
 <script>
-let scene, camera, renderer, player;
-let tx=0, ty=0;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 
-function startGame(){
-  document.getElementById("play").remove();
+let player, bullets, botBullets, bot;
+let level=1, hp=100, running=false;
+let skin="cyan";
+const keys = {};
 
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x111111);
+function setSkin(c){ skin=c; }
 
-  camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
-
-  renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(innerWidth, innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  scene.add(new THREE.AmbientLight(0xffffff,1));
-
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(100,100),
-    new THREE.MeshStandardMaterial({color:0x333333})
-  );
-  floor.rotation.x = -Math.PI/2;
-  scene.add(floor);
-
-  player = new THREE.Mesh(
-    new THREE.BoxGeometry(1,2,1),
-    new THREE.MeshStandardMaterial({color:0x00ffff})
-  );
-  player.position.y = 1;
-  scene.add(player);
-
-  camera.position.set(0,6,10);
-
-  renderer.domElement.addEventListener("touchstart", e=>{
-    tx = e.touches[0].clientX;
-    ty = e.touches[0].clientY;
-  });
-
-  renderer.domElement.addEventListener("touchmove", e=>{
-    const t = e.touches[0];
-    player.position.x += (t.clientX - tx)*0.01;
-    player.position.z += (t.clientY - ty)*0.01;
-    tx = t.clientX;
-    ty = t.clientY;
-  });
-
-  animate();
+function start(){
+  document.getElementById("menu").remove();
+  running=true;
+  initLevel();
+  loop();
 }
 
-function animate(){
-  requestAnimationFrame(animate);
-  camera.lookAt(player.position);
-  renderer.render(scene,camera);
+function initLevel(){
+  bullets=[];
+  botBullets=[];
+  player={ x:canvas.width/2, y:canvas.height-80, r:18, speed:6 };
+  bot={
+    x:canvas.width/2,
+    y:100,
+    r:22,
+    hp:60 + level*40,
+    dir:1
+  };
+  document.getElementById("lvl").textContent = level;
 }
 
-window.addEventListener("resize", ()=>{
-  camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+document.addEventListener("keydown", e=>{
+  keys[e.key.toLowerCase()] = true;
+});
+document.addEventListener("keyup", e=>{
+  keys[e.key.toLowerCase()] = false;
+});
+
+function shoot(){
+  bullets.push({ x: player.x, y: player.y });
+}
+
+setInterval(()=>{
+  if(running && keys["q"]) shoot();
+}, 200);
+
+setInterval(()=>{
+  if(running) botBullets.push({ x: bot.x, y: bot.y });
+}, 700 - level*40);
+
+function loop(){
+  if(!running) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Movement (WASD + Arrows)
+  if(keys["a"] || keys["arrowleft"]) player.x -= player.speed;
+  if(keys["d"] || keys["arrowright"]) player.x += player.speed;
+  if(keys["w"] || keys["arrowup"]) player.y -= player.speed;
+  if(keys["s"] || keys["arrowdown"]) player.y += player.speed;
+
+  // Clamp player
+  player.x = Math.max(player.r, Math.min(canvas.width-player.r, player.x));
+  player.y = Math.max(player.r, Math.min(canvas.height-player.r, player.y));
+
+  // Player
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
+  ctx.fill();
+
+  // Player bullets
+  ctx.fillStyle="yellow";
+  bullets.forEach((b,i)=>{
+    b.y -= 10;
+    ctx.fillRect(b.x-3,b.y,6,12);
+    if(b.y<0) bullets.splice(i,1);
+    if(Math.hypot(b.x-bot.x,b.y-bot.y) < bot.r){
+      bullets.splice(i,1);
+      bot.hp -= 10;
+    }
+  });
+
+  // Bot AI
+  bot.x += bot.dir * (2 + level);
+  if(bot.x<40 || bot.x>canvas.width-40) bot.dir *= -1;
+
+  ctx.fillStyle="red";
+  ctx.beginPath();
+  ctx.arc(bot.x, bot.y, bot.r, 0, Math.PI*2);
+  ctx.fill();
+
+  // Bot bullets
+  ctx.fillStyle="orange";
+  botBullets.forEach((b,i)=>{
+    b.y += 6 + level;
+    ctx.fillRect(b.x-3,b.y,6,12);
+    if(Math.hypot(b.x-player.x,b.y-player.y) < player.r){
+      botBullets.splice(i,1);
+      hp -= 15;
+    }
+  });
+
+  document.getElementById("hp").textContent = hp;
+
+  if(bot.hp <= 0){
+    level++;
+    initLevel();
+  }
+
+  if(hp <= 0){
+    running=false;
+    document.getElementById("gameover").style.display="flex";
+  }
+
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener("resize",()=>{
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
 });
 </script>
 
 </body>
 </html>
+
