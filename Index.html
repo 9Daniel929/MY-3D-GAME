@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3D Game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: black;
+  font-family: Arial;
+}
+#play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: black;
+}
+button {
+  padding: 18px 36px;
+  font-size: 22px;
+}
+</style>
+</head>
+<body>
+
+<div id="play">
+  <button onclick="startGame()">PLAY</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+
+<script>
+let scene, camera, renderer, player;
+let tx=0, ty=0;
+
+function startGame(){
+  document.getElementById("play").remove();
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x111111);
+
+  camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(innerWidth, innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff,1));
+
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(100,100),
+    new THREE.MeshStandardMaterial({color:0x333333})
+  );
+  floor.rotation.x = -Math.PI/2;
+  scene.add(floor);
+
+  player = new THREE.Mesh(
+    new THREE.BoxGeometry(1,2,1),
+    new THREE.MeshStandardMaterial({color:0x00ffff})
+  );
+  player.position.y = 1;
+  scene.add(player);
+
+  camera.position.set(0,6,10);
+
+  renderer.domElement.addEventListener("touchstart", e=>{
+    tx = e.touches[0].clientX;
+    ty = e.touches[0].clientY;
+  });
+
+  renderer.domElement.addEventListener("touchmove", e=>{
+    const t = e.touches[0];
+    player.position.x += (t.clientX - tx)*0.01;
+    player.position.z += (t.clientY - ty)*0.01;
+    tx = t.clientX;
+    ty = t.clientY;
+  });
+
+  animate();
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  camera.lookAt(player.position);
+  renderer.render(scene,camera);
+}
+
+window.addEventListener("resize", ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+
+</body>
+</html>
