@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Shooter Keyboard</title>
+<title>Shooter Equal Bot</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:Arial; }
@@ -36,8 +36,9 @@ button { padding:14px 28px; font-size:20px; margin:8px; }
 </div>
 
 <div id="ui">
-  ❤️ <span id="hp">100</span> |
-  Level <span id="lvl">1</span>
+  ❤️ You: <span id="hp">100</span>
+  | 🤖 Bot: <span id="bhp">100</span>
+  | Level <span id="lvl">1</span>
 </div>
 
 <div id="gameover">
@@ -53,64 +54,69 @@ const ctx = canvas.getContext("2d");
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-let player, bullets, botBullets, bot;
-let level=1, hp=100, running=false;
-let skin="cyan";
+let player, bot, bullets, botBullets;
+let level = 1;
+let maxHP = 100;
+let hp = maxHP;
+let botHP = maxHP;
+let running = false;
+let skin = "cyan";
 const keys = {};
 
-function setSkin(c){ skin=c; }
+function setSkin(c){ skin = c; }
 
 function start(){
   document.getElementById("menu").remove();
-  running=true;
-  initLevel();
+  running = true;
+  startLevel();
   loop();
 }
 
-function initLevel(){
-  bullets=[];
-  botBullets=[];
-  player={ x:canvas.width/2, y:canvas.height-80, r:18, speed:6 };
-  bot={
-    x:canvas.width/2,
-    y:100,
-    r:22,
-    hp:60 + level*40,
-    dir:1
+function startLevel(){
+  bullets = [];
+  botBullets = [];
+  hp = maxHP;
+  botHP = maxHP;
+
+  player = { x: canvas.width/2, y: canvas.height-80, r:18, speed:6 };
+  bot = {
+    x: canvas.width/2,
+    y: 100,
+    r: 22,
+    dir: 1,
+    speed: 2 + level
   };
+
   document.getElementById("lvl").textContent = level;
 }
 
-document.addEventListener("keydown", e=>{
+document.addEventListener("keydown", e => {
   keys[e.key.toLowerCase()] = true;
 });
-document.addEventListener("keyup", e=>{
+document.addEventListener("keyup", e => {
   keys[e.key.toLowerCase()] = false;
 });
 
-function shoot(){
-  bullets.push({ x: player.x, y: player.y });
-}
-
 setInterval(()=>{
-  if(running && keys["q"]) shoot();
+  if(running && keys["q"])
+    bullets.push({ x: player.x, y: player.y });
 }, 200);
 
 setInterval(()=>{
-  if(running) botBullets.push({ x: bot.x, y: bot.y });
-}, 700 - level*40);
+  if(running)
+    botBullets.push({ x: bot.x, y: bot.y });
+}, 700 - level*30);
 
 function loop(){
   if(!running) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // Movement (WASD + Arrows)
+  // Movement
   if(keys["a"] || keys["arrowleft"]) player.x -= player.speed;
   if(keys["d"] || keys["arrowright"]) player.x += player.speed;
   if(keys["w"] || keys["arrowup"]) player.y -= player.speed;
   if(keys["s"] || keys["arrowdown"]) player.y += player.speed;
 
-  // Clamp player
   player.x = Math.max(player.r, Math.min(canvas.width-player.r, player.x));
   player.y = Math.max(player.r, Math.min(canvas.height-player.r, player.y));
 
@@ -121,53 +127,56 @@ function loop(){
   ctx.fill();
 
   // Player bullets
-  ctx.fillStyle="yellow";
+  ctx.fillStyle = "yellow";
   bullets.forEach((b,i)=>{
     b.y -= 10;
     ctx.fillRect(b.x-3,b.y,6,12);
-    if(b.y<0) bullets.splice(i,1);
+    if(b.y < 0) bullets.splice(i,1);
     if(Math.hypot(b.x-bot.x,b.y-bot.y) < bot.r){
       bullets.splice(i,1);
-      bot.hp -= 10;
+      botHP -= 10;
     }
   });
 
   // Bot AI
-  bot.x += bot.dir * (2 + level);
-  if(bot.x<40 || bot.x>canvas.width-40) bot.dir *= -1;
+  bot.x += bot.dir * bot.speed;
+  if(bot.x < 40 || bot.x > canvas.width-40) bot.dir *= -1;
 
-  ctx.fillStyle="red";
+  ctx.fillStyle = "red";
   ctx.beginPath();
   ctx.arc(bot.x, bot.y, bot.r, 0, Math.PI*2);
   ctx.fill();
 
   // Bot bullets
-  ctx.fillStyle="orange";
+  ctx.fillStyle = "orange";
   botBullets.forEach((b,i)=>{
     b.y += 6 + level;
     ctx.fillRect(b.x-3,b.y,6,12);
     if(Math.hypot(b.x-player.x,b.y-player.y) < player.r){
       botBullets.splice(i,1);
-      hp -= 15;
+      hp -= 10;
     }
   });
 
+  // UI
   document.getElementById("hp").textContent = hp;
+  document.getElementById("bhp").textContent = botHP;
 
-  if(bot.hp <= 0){
+  // Level logic
+  if(botHP <= 0){
     level++;
-    initLevel();
+    startLevel();
   }
 
   if(hp <= 0){
-    running=false;
-    document.getElementById("gameover").style.display="flex";
+    running = false;
+    document.getElementById("gameover").style.display = "flex";
   }
 
   requestAnimationFrame(loop);
 }
 
-window.addEventListener("resize",()=>{
+window.addEventListener("resize", ()=>{
   canvas.width = innerWidth;
   canvas.height = innerHeight;
 });
@@ -175,4 +184,5 @@ window.addEventListener("resize",()=>{
 
 </body>
 </html>
+
 
